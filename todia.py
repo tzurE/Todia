@@ -1,55 +1,46 @@
-from urllib.request import urlopen
+import argparse
+import time
+import urllib.request
 from notify_run import Notify
-import re
-from time import sleep
-from argparse import ArgumentParser
-
-DEFAULT_NUMBER_OF_MINUTES = 10
 
 
-def notify_me(url, phrase_to_search='Closed sale', seconds_to_sleep=600):
+def create_parser():
+    parser = argparse.ArgumentParser(description="Check a URL for a phrase and notify if not found")
+    parser.add_argument("-u", "--url", type=str, help="The URL to check")
+    parser.add_argument("-p", "--phrase", type=str, help="The phrase to search for")
+    parser.add_argument("-c", "--check-interval", type=int, default=600,
+                        help="The interval (in seconds) to check the URL (default: 600)")
+
+    return parser
+
+
+def todia(url, phrase, check_interval):
     notify = Notify()
-    data = (urlopen(url)).readlines()
-
-    notify.send('Starting notification process. This is the first notification.')
-    phrase_exists = False
     try:
-        # A simple while, with an X minutes check.
-        while not phrase_exists:
-            phrase_exists = True
-            for line in data:
-                x = re.search(phrase_to_search, str(line))
-                if x:
-                    phrase_exists = False
-                    break
-            sleep(seconds_to_sleep)
-            data = (urlopen(url)).readlines()
+        notify.send("Starting service. First notification.")
+        while True:
+            # Make a request to the URL and get the page content
+            with urllib.request.urlopen(url) as response:
+                page_content = response.read().decode("utf-8")
+
+            if phrase not in page_content:
+                # If the phrase is not found, notify and exit
+                notify.send("The phrase was not found on the page! The page has changed!")
+                break
+
+            # If the phrase is found, wait and check again
+            time.sleep(check_interval)
     finally:
-        # If we got here, either the site changed
-        # or something went wrong. Either way, should check url.
-        notify.send('The site has changed! check it!')
+        notify.send("If no other notification was sent, "
+                    "something went wrong. Process Stopped.")
 
 
-def todia():
-    args = parse_args()
-    seconds_to_sleep = args.minutes * 60
-    notify_me(args.url, phrase_to_search=args.phrase, seconds_to_sleep=seconds_to_sleep)
-
-
-def parse_args():
-    parser = ArgumentParser(
-        prog='Todia',
-        description='Todia is a tool for monitoring webpages and notifying changes made to them.')
-    parser.add_argument('-p', '--phrase', required=True, type=str,
-                        help='The phrase or tag to search for in the web page.')
-    parser.add_argument('-u', '--url', required=True, type=str,
-                        help='The web page to check if the phrase exists in.')
-    parser.add_argument('-m', '--minutes', type=int, required=True, default=DEFAULT_NUMBER_OF_MINUTES,
-                        help='The gap between web page checks (check every X minutes).')
-
+def main():
+    parser = create_parser()
     args = parser.parse_args()
-    return args
+
+    todia(args.url, args.phrase, args.check_interval)
 
 
 if __name__ == '__main__':
-    todia()
+    main()
