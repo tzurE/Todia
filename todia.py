@@ -2,6 +2,12 @@ import argparse
 import time
 import urllib.request
 from notify_run import Notify
+import logging
+import sys
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)-8s %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
 
 
 def create_parser():
@@ -30,7 +36,11 @@ def todia(url, phrase, check_interval):
 
             # If the phrase is found, wait and check again
             time.sleep(check_interval)
+    except:
+        logging.exception("A general exception as occurred. Try to notify user.")
+        notify.send("A general exception occurred, please check process.")
     finally:
+        logging.info("Finished running, sending final notification.")
         notify.send("If no other notification was sent, "
                     "something went wrong. Process Stopped.")
 
